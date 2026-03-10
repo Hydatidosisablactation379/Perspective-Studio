@@ -8,14 +8,14 @@ Built with SwiftUI and [MLX Swift](https://github.com/ml-explore/mlx-swift-lm) b
 
 ## Features
 
-- **Model Discovery** — Browse thousands of models from the [mlx-community](https://huggingface.co/mlx-community) on Hugging Face, organized into categories like Chat, Reasoning, Code, Vision, and more
-- **One-Click Download** — Download any model directly to your Mac with progress tracking
-- **Local Inference** — Chat with models entirely on-device using MLX Swift. Nothing leaves your machine
-- **RAM Awareness** — See at a glance which models fit comfortably in your Mac's memory
-- **TTS Playground** — Text-to-speech with MLX Audio and VibeVoice models
-- **Context Management** — Automatic conversation summarization to stay within context limits
-- **Beginner Friendly** — A simplified experience mode that hides technical jargon and shows practical descriptions
-- **Accessible from the Ground Up** — Full VoiceOver support, keyboard navigation, accessibility announcements, and screen reader-friendly UI throughout. Built by a blind developer who uses VoiceOver as the primary interface
+- Browse thousands of models from mlx-community on Hugging Face
+- Download any model directly to your Mac with progress tracking
+- Chat with models entirely on-device using MLX Swift
+- See which models fit comfortably in your Mac's memory
+- Text-to-speech playground with MLX Audio and VibeVoice
+- Automatic conversation summarization to stay within context limits
+- Beginner-friendly mode that hides technical jargon
+- Full VoiceOver support, keyboard navigation, and screen reader-friendly UI throughout
 
 ## Requirements
 
@@ -35,10 +35,10 @@ Built with SwiftUI and [MLX Swift](https://github.com/ml-explore/mlx-swift-lm) b
 
 ## Built With
 
-- [MLX Swift](https://github.com/ml-explore/mlx-swift) — Apple's machine learning framework for Apple Silicon
-- [MLX Swift LM](https://github.com/ml-explore/mlx-swift-lm) — Language model inference
-- [Swift Transformers](https://github.com/huggingface/swift-transformers) — Tokenizers from Hugging Face
-- [Hugging Face Hub](https://huggingface.co/mlx-community) — Model discovery and downloads
+- [MLX Swift](https://github.com/ml-explore/mlx-swift)
+- [MLX Swift LM](https://github.com/ml-explore/mlx-swift-lm)
+- [Swift Transformers](https://github.com/huggingface/swift-transformers)
+- [Hugging Face Hub](https://huggingface.co/mlx-community)
 
 ## Accessibility
 
@@ -58,6 +58,6 @@ MIT. See [LICENSE](LICENSE) for details.
 
 ## Related Projects
 
-- [Perspective Server](https://github.com/Techopolis/Perspective-Server) — macOS menu bar app that exposes on-device Foundation Models as an OpenAI-compatible local API
-- [Perspective CLI](https://github.com/Techopolis/PerspectiveCLI) — Command-line interface for running Foundation Models and MLX models
-- [Perspective Web](https://github.com/Techopolis/perspective-intelligence-web-community) — Open-source AI chat app powered by Apple Foundation Models, runs in any browser
+- [Perspective Server](https://github.com/Techopolis/Perspective-Server)
+- [Perspective CLI](https://github.com/Techopolis/PerspectiveCLI)
+- [Perspective Web](https://github.com/Techopolis/perspective-intelligence-web-community)
