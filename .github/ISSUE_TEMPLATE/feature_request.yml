@@ -1,0 +1,47 @@
+name: Feature Request
+description: Suggest a new feature or improvement
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        We would love to hear your ideas for Perspective Studio.
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Feature Description
+      description: What would you like to see added or changed?
+    validations:
+      required: true
+
+  - type: textarea
+    id: use-case
+    attributes:
+      label: Use Case
+      description: How would you use this feature? What problem does it solve?
+    validations:
+      required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Model Discovery
+        - Model Downloads
+        - Chat
+        - TTS Playground
+        - Settings
+        - Accessibility
+        - Performance
+        - Other
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: accessibility
+    attributes:
+      label: Accessibility
+      options:
+        - label: This feature is related to accessibility or assistive technology support

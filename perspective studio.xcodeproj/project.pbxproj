@@ -6,6 +6,12 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		9DA0BA1C2F5B801300DA2772 /* MLXLLM in Frameworks */ = {isa = PBXBuildFile; productRef = D1A200012F5A000100000003 /* MLXLLM */; };
+		9DA0BA1D2F5B801300DA2772 /* MLXVLM in Frameworks */ = {isa = PBXBuildFile; productRef = D1A200012F5A000100000004 /* MLXVLM */; };
+		9DA0BA1E2F5B801300DA2772 /* MLXLMCommon in Frameworks */ = {isa = PBXBuildFile; productRef = D1A200012F5A000100000005 /* MLXLMCommon */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
 		9DE342082F59134400242AA7 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -65,6 +71,9 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				9DA0BA1E2F5B801300DA2772 /* MLXLMCommon in Frameworks */,
+				9DA0BA1D2F5B801300DA2772 /* MLXVLM in Frameworks */,
+				9DA0BA1C2F5B801300DA2772 /* MLXLLM in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -125,6 +134,9 @@
 			);
 			name = "perspective studio";
 			packageProductDependencies = (
+				D1A200012F5A000100000003 /* MLXLLM */,
+				D1A200012F5A000100000004 /* MLXVLM */,
+				D1A200012F5A000100000005 /* MLXLMCommon */,
 			);
 			productName = "perspective studio";
 			productReference = 9DE341F62F59134300242AA7 /* perspective studio.app */;
@@ -147,8 +159,6 @@
 				9DE3420A2F59134400242AA7 /* perspective studioTests */,
 			);
 			name = "perspective studioTests";
-			packageProductDependencies = (
-			);
 			productName = "perspective studioTests";
 			productReference = 9DE342072F59134400242AA7 /* perspective studioTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
@@ -170,8 +180,6 @@
 				9DE342142F59134400242AA7 /* perspective studioUITests */,
 			);
 			name = "perspective studioUITests";
-			packageProductDependencies = (
-			);
 			productName = "perspective studioUITests";
 			productReference = 9DE342112F59134400242AA7 /* perspective studioUITests.xctest */;
 			productType = "com.apple.product-type.bundle.ui-testing";
@@ -208,6 +216,9 @@
 			);
 			mainGroup = 9DE341ED2F59134300242AA7;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				D1A200012F5A000100000001 /* XCRemoteSwiftPackageReference "mlx-swift-lm" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 9DE341F72F59134300242AA7 /* Products */;
 			projectDirPath = "";
@@ -290,7 +301,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = M9SNPTXA44;
-				ENABLE_APP_SANDBOX = YES;
+				ENABLE_APP_SANDBOX = NO;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
@@ -321,7 +332,7 @@
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
-				SWIFT_VERSION = 5.0;
+				SWIFT_VERSION = 6.0;
 				TARGETED_DEVICE_FAMILY = "1,2,7";
 				XROS_DEPLOYMENT_TARGET = 26.2;
 			};
@@ -335,7 +346,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = M9SNPTXA44;
-				ENABLE_APP_SANDBOX = YES;
+				ENABLE_APP_SANDBOX = NO;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
@@ -366,7 +377,7 @@
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
-				SWIFT_VERSION = 5.0;
+				SWIFT_VERSION = 6.0;
 				TARGETED_DEVICE_FAMILY = "1,2,7";
 				XROS_DEPLOYMENT_TARGET = 26.2;
 			};
@@ -507,7 +518,7 @@
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_EMIT_LOC_STRINGS = NO;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
-				SWIFT_VERSION = 5.0;
+				SWIFT_VERSION = 6.0;
 				TARGETED_DEVICE_FAMILY = "1,2,7";
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/perspective studio.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/perspective studio";
 				XROS_DEPLOYMENT_TARGET = 26.2;
@@ -533,7 +544,7 @@
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_EMIT_LOC_STRINGS = NO;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
-				SWIFT_VERSION = 5.0;
+				SWIFT_VERSION = 6.0;
 				TARGETED_DEVICE_FAMILY = "1,2,7";
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/perspective studio.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/perspective studio";
 				XROS_DEPLOYMENT_TARGET = 26.2;
@@ -558,7 +569,7 @@
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_EMIT_LOC_STRINGS = NO;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
-				SWIFT_VERSION = 5.0;
+				SWIFT_VERSION = 6.0;
 				TARGETED_DEVICE_FAMILY = "1,2,7";
 				TEST_TARGET_NAME = "perspective studio";
 				XROS_DEPLOYMENT_TARGET = 26.2;
@@ -583,7 +594,7 @@
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_EMIT_LOC_STRINGS = NO;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
-				SWIFT_VERSION = 5.0;
+				SWIFT_VERSION = 6.0;
 				TARGETED_DEVICE_FAMILY = "1,2,7";
 				TEST_TARGET_NAME = "perspective studio";
 				XROS_DEPLOYMENT_TARGET = 26.2;
@@ -630,6 +641,35 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		D1A200012F5A000100000001 /* XCRemoteSwiftPackageReference "mlx-swift-lm" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/ml-explore/mlx-swift-lm/";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.30.6;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		D1A200012F5A000100000003 /* MLXLLM */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = D1A200012F5A000100000001 /* XCRemoteSwiftPackageReference "mlx-swift-lm" */;
+			productName = MLXLLM;
+		};
+		D1A200012F5A000100000004 /* MLXVLM */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = D1A200012F5A000100000001 /* XCRemoteSwiftPackageReference "mlx-swift-lm" */;
+			productName = MLXVLM;
+		};
+		D1A200012F5A000100000005 /* MLXLMCommon */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = D1A200012F5A000100000001 /* XCRemoteSwiftPackageReference "mlx-swift-lm" */;
+			productName = MLXLMCommon;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 9DE341EE2F59134300242AA7 /* Project object */;
 }
