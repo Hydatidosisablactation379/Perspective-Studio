@@ -2,22 +2,22 @@ import SwiftUI
 
 struct ModelDiscoveryView: View {
     let models: [HFModel]
-    @Bindable var chatViewModel: ChatViewModel
+    let chatViewModel: ChatViewModel
     @State private var searchText = ""
     @State private var expandedCategories: Set<ModelCategory> = []
     @State private var isNewExpanded = false
 
+    @AppStorage("experienceLevel") private var experienceLevelRaw: String = ExperienceLevel.beginner.rawValue
     private var experienceLevel: ExperienceLevel {
-        OnboardingViewModel.currentExperienceLevel
+        ExperienceLevel(rawValue: experienceLevelRaw) ?? .beginner
     }
 
     private var filteredModels: [HFModel] {
         guard !searchText.isEmpty else { return models }
-        let query = searchText.lowercased()
         return models.filter { model in
-            model.displayName.lowercased().contains(query)
-                || (model.madeBy?.lowercased().contains(query) ?? false)
-                || model.category.displayName.lowercased().contains(query)
+            model.displayName.localizedStandardContains(searchText)
+                || (model.madeBy?.localizedStandardContains(searchText) ?? false)
+                || model.category.displayName.localizedStandardContains(searchText)
         }
     }
 
@@ -50,33 +50,34 @@ struct ModelDiscoveryView: View {
     }
 
     var body: some View {
-        NavigationStack {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 24) {
-                    headerSection
+        ScrollView {
+            VStack(alignment: .leading, spacing: 24) {
+                headerSection
 
-                    if searchText.isEmpty && !newThisWeek.isEmpty {
-                        newThisWeekSection
-                    }
-
-                    if searchText.isEmpty && experienceLevel != .powerUser && !recommendedModels.isEmpty {
-                        recommendedSection
-                    }
-
-                    ForEach(categorizedModels, id: \.category) { group in
-                        categorySection(group.category, models: group.models)
-                    }
-
-                    Text("Browsing \(models.count) models from mlx-community")
-                        .font(.caption)
-                        .foregroundStyle(.tertiary)
-                        .frame(maxWidth: .infinity)
-                        .padding(.top, 8)
+                if searchText.isEmpty && !newThisWeek.isEmpty {
+                    newThisWeekSection
                 }
-                .padding()
+
+                if searchText.isEmpty && experienceLevel != .powerUser && !recommendedModels.isEmpty {
+                    recommendedSection
+                }
+
+                ForEach(categorizedModels, id: \.category) { group in
+                    categorySection(group.category, models: group.models)
+                }
+
+                Text("Browsing \(models.count) models from mlx-community")
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
+                    .frame(maxWidth: .infinity)
+                    .padding(.top, 8)
             }
-            .navigationTitle(experienceLevel == .beginner ? "Discover Models" : "Model Browser")
-            .searchable(text: $searchText, prompt: "Search by name, maker, or category")
+            .padding()
+        }
+        .navigationTitle(experienceLevel == .beginner ? "Discover Models" : "Model Browser")
+        .searchable(text: $searchText, prompt: "Search by name, maker, or category")
+        .navigationDestination(for: HFModel.self) { model in
+            ModelDetailView(model: model, chatViewModel: chatViewModel)
         }
     }
 
@@ -118,9 +119,6 @@ struct ModelDiscoveryView: View {
                     .buttonStyle(.plain)
                 }
             }
-        }
-        .navigationDestination(for: HFModel.self) { model in
-            ModelDetailView(model: model, chatViewModel: chatViewModel)
         }
     }
 

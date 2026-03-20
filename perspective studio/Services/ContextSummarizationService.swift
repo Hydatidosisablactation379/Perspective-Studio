@@ -109,6 +109,12 @@ struct ContextSummarizationService {
         let sorted = conversation.sortedMessages
         var prompt: [(role: String, content: String)] = []
 
+        // Include per-conversation system prompt if set
+        if let systemPrompt = conversation.systemPrompt,
+           !systemPrompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            prompt.append((role: "system", content: systemPrompt))
+        }
+
         if let summary = conversation.runningSummary,
            !summary.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             prompt.append((

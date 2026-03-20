@@ -1,45 +1,63 @@
 import SwiftUI
 import AppKit
-import AVFoundation
+
+// MARK: - Full-width message row (ChatGPT / Copilot style)
 
 struct MessageBubbleView: View {
     let message: Message
     @State private var showingCopyConfirmation = false
     @State private var ttsService = TTSService.shared
-    private let maxBubbleWidth: CGFloat = 520
 
     private var isSpeakingThis: Bool { ttsService.speakingMessageID == message.id }
 
-    private var isUser: Bool { message.role == .user }
-    private var isSystem: Bool { message.role == .system }
-
     var body: some View {
-        if isSystem {
+        if message.role == .system {
             systemBanner
         } else {
-            HStack(alignment: isUser ? .bottom : .top, spacing: 8) {
-                if isUser {
-                    Spacer(minLength: 50)
-                    userBubble
-                    userAvatar
-                } else {
-                    assistantAvatar
-                    assistantBubble
-                    Spacer(minLength: 50)
-                }
+            messageRow
+        }
+    }
+
+    // MARK: - Message Row
+
+    private var messageRow: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            // Header: avatar + role name + timestamp
+            HStack(spacing: 8) {
+                avatar
+                Text(roleName)
+                    .font(.subheadline)
+                    .bold()
+                Spacer()
+                Text(message.timestamp, format: .dateTime.hour().minute())
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
+                    .accessibilityHidden(true)
             }
-            .frame(maxWidth: .infinity, alignment: isUser ? .trailing : .leading)
-            .padding(.horizontal, 8)
-            .padding(.vertical, 4)
-            .accessibilityElement(children: .ignore)
-            .accessibilityLabel(isUser ? "You said: \(message.content)" : "Assistant said: \(message.content)")
-            .accessibilityAction(named: "Copy") { copyMessage() }
-            .accessibilityAction(named: isSpeakingThis ? "Stop reading" : "Read aloud") { toggleSpeech() }
-            .contextMenu {
-                Button(action: copyMessage) {
-                    Label("Copy Text", systemImage: "doc.on.doc")
-                }
+
+            // Content
+            Text(message.content)
+                .font(.body)
+                .textSelection(.enabled)
+
+            // Action buttons for assistant messages
+            if message.role == .assistant && !message.content.isEmpty {
+                actionButtons
             }
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+        .background(message.role == .user ? Color.primary.opacity(0.04) : .clear)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(message.role == .user ? "You: \(message.content)" : "Assistant: \(message.content)")
+        .accessibilityHint("Swipe up or down for actions")
+        .accessibilityAction(named: "Copy message") { copyMessage() }
+        .accessibilityAction(named: isSpeakingThis ? "Stop reading aloud" : "Read aloud") { toggleSpeech() }
+        .contextMenu {
+            Button("Copy Text", systemImage: "doc.on.doc", action: copyMessage)
+            Button(isSpeakingThis ? "Stop Reading" : "Read Aloud",
+                   systemImage: isSpeakingThis ? "stop.circle" : "speaker.wave.2",
+                   action: toggleSpeech)
         }
     }
 
@@ -47,102 +65,61 @@ struct MessageBubbleView: View {
 
     private var systemBanner: some View {
         HStack(spacing: 6) {
-            Image(systemName: "arrow.triangle.2.circlepath")
+            Image(systemName: "info.circle")
                 .font(.caption2)
                 .foregroundStyle(.secondary)
+                .accessibilityHidden(true)
             Text(message.content)
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 6)
-        .background(.ultraThinMaterial)
-        .clipShape(Capsule())
         .frame(maxWidth: .infinity)
         .padding(.vertical, 8)
         .accessibilityElement(children: .combine)
         .accessibilityLabel("System note: \(message.content)")
     }
 
-    private var userBubble: some View {
-        Text(message.content)
-            .font(.body)
-            .foregroundColor(.white)
-            .textSelection(.enabled)
-            .padding(.horizontal, 16)
-            .padding(.vertical, 12)
-            .background(
-                LinearGradient(
-                    colors: [Color(red: 0.0, green: 0.48, blue: 1.0),
-                             Color(red: 0.0, green: 0.42, blue: 0.92)],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
-            )
-            .clipShape(RoundedBubbleShape(isFromUser: true))
-            .shadow(color: .black.opacity(0.08), radius: 2, x: 0, y: 1)
-            .frame(maxWidth: maxBubbleWidth, alignment: .trailing)
+    // MARK: - Components
+
+    private var roleName: String {
+        message.role == .user ? "You" : "Assistant"
     }
 
-    private var assistantBubble: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(message.content)
-                .font(.body)
-                .foregroundColor(.primary)
-                .textSelection(.enabled)
-                .padding(.horizontal, 16)
-                .padding(.vertical, 12)
-                .background(Color(.systemGray).opacity(0.15))
-                .clipShape(RoundedBubbleShape(isFromUser: false))
+    private var avatar: some View {
+        Circle()
+            .fill(message.role == .user
+                  ? LinearGradient(colors: [.green, .blue], startPoint: .topLeading, endPoint: .bottomTrailing)
+                  : LinearGradient(colors: [.purple, .blue], startPoint: .topLeading, endPoint: .bottomTrailing))
+            .frame(width: 24, height: 24)
+            .overlay(
+                Image(systemName: message.role == .user ? "person.fill" : "cpu")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.white)
+            )
+            .accessibilityHidden(true)
+    }
 
-            HStack(spacing: 6) {
-                Text(message.timestamp, format: .dateTime.hour().minute())
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-                Spacer()
-                Button(action: copyMessage) {
-                    Image(systemName: showingCopyConfirmation ? "checkmark" : "doc.on.doc")
-                        .font(.system(size: 11))
-                        .foregroundColor(showingCopyConfirmation ? .green : .secondary)
-                }
-                .buttonStyle(.plain)
-                .accessibilityHidden(true)
-                Button(action: toggleSpeech) {
-                    Image(systemName: isSpeakingThis ? "stop.circle" : "speaker.wave.2")
-                        .font(.system(size: 11))
-                        .foregroundStyle(isSpeakingThis ? Color.accentColor : .secondary)
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel(isSpeakingThis ? "Stop reading" : "Read aloud")
+    private var actionButtons: some View {
+        HStack(spacing: 12) {
+            Button("Copy", systemImage: showingCopyConfirmation ? "checkmark" : "doc.on.doc") {
+                copyMessage()
             }
-            .padding(.horizontal, 4)
+            .foregroundStyle(showingCopyConfirmation ? .green : .secondary)
+            .accessibilityLabel(showingCopyConfirmation ? "Copied" : "Copy message")
+
+            Button(isSpeakingThis ? "Stop" : "Read Aloud",
+                   systemImage: isSpeakingThis ? "stop.circle" : "speaker.wave.2") {
+                toggleSpeech()
+            }
+            .foregroundStyle(isSpeakingThis ? Color.accentColor : .secondary)
+            .accessibilityLabel(isSpeakingThis ? "Stop reading aloud" : "Read message aloud")
         }
-        .frame(maxWidth: maxBubbleWidth, alignment: .leading)
+        .font(.caption)
+        .buttonStyle(.plain)
+        .padding(.top, 4)
     }
 
-    private var userAvatar: some View {
-        Circle()
-            .fill(LinearGradient(colors: [.green, .blue], startPoint: .topLeading, endPoint: .bottomTrailing))
-            .frame(width: 32, height: 32)
-            .overlay(
-                Image(systemName: "person.fill")
-                    .font(.system(size: 14))
-                    .foregroundColor(.white)
-            )
-            .accessibilityHidden(true)
-    }
-
-    private var assistantAvatar: some View {
-        Circle()
-            .fill(LinearGradient(colors: [.purple, .blue], startPoint: .topLeading, endPoint: .bottomTrailing))
-            .frame(width: 32, height: 32)
-            .overlay(
-                Image(systemName: "cpu")
-                    .font(.system(size: 14))
-                    .foregroundColor(.white)
-            )
-            .accessibilityHidden(true)
-    }
+    // MARK: - Actions
 
     private func copyMessage() {
         let pasteboard = NSPasteboard.general
@@ -166,36 +143,5 @@ struct MessageBubbleView: View {
         } else {
             TTSService.shared.speak(text: message.content, messageID: message.id)
         }
-    }
-}
-
-struct RoundedBubbleShape: Shape {
-    var isFromUser: Bool
-
-    func path(in rect: CGRect) -> Path {
-        let radius: CGFloat = 20
-        let tailRadius: CGFloat = 4
-
-        let topLeft = radius
-        let topRight = radius
-        let bottomLeft = isFromUser ? radius : tailRadius
-        let bottomRight = isFromUser ? tailRadius : radius
-
-        var path = Path()
-        path.move(to: CGPoint(x: rect.minX + topLeft, y: rect.minY))
-        path.addLine(to: CGPoint(x: rect.maxX - topRight, y: rect.minY))
-        path.addArc(center: CGPoint(x: rect.maxX - topRight, y: rect.minY + topRight),
-                    radius: topRight, startAngle: .degrees(-90), endAngle: .degrees(0), clockwise: false)
-        path.addLine(to: CGPoint(x: rect.maxX, y: rect.maxY - bottomRight))
-        path.addArc(center: CGPoint(x: rect.maxX - bottomRight, y: rect.maxY - bottomRight),
-                    radius: bottomRight, startAngle: .degrees(0), endAngle: .degrees(90), clockwise: false)
-        path.addLine(to: CGPoint(x: rect.minX + bottomLeft, y: rect.maxY))
-        path.addArc(center: CGPoint(x: rect.minX + bottomLeft, y: rect.maxY - bottomLeft),
-                    radius: bottomLeft, startAngle: .degrees(90), endAngle: .degrees(180), clockwise: false)
-        path.addLine(to: CGPoint(x: rect.minX, y: rect.minY + topLeft))
-        path.addArc(center: CGPoint(x: rect.minX + topLeft, y: rect.minY + topLeft),
-                    radius: topLeft, startAngle: .degrees(180), endAngle: .degrees(270), clockwise: false)
-        path.closeSubpath()
-        return path
     }
 }

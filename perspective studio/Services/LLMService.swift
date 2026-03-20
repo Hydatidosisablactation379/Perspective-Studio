@@ -12,10 +12,19 @@ actor LLMService {
     private var chatSession: ChatSession?
     private var isCancelled = false
     private var isVLM = false
+    private var isLoading = false
 
     func loadModelByID(_ id: String, isVideoModel: Bool = false) throws -> AsyncThrowingStream<Double, Error> {
+        // Guard against reentrancy — cancel any in-flight load
+        if isLoading {
+            isCancelled = true
+        }
         isCancelled = false
+        isLoading = true
         isVLM = isVideoModel
+
+        // Unload previous model to free memory before loading new one
+        modelContainer = nil
         chatSession = nil
 
         return AsyncThrowingStream { continuation in
@@ -34,8 +43,10 @@ actor LLMService {
                     }
                     self.modelContainer = container
                     self.chatSession = ChatSession(container)
+                    self.isLoading = false
                     continuation.finish()
                 } catch {
+                    self.isLoading = false
                     continuation.finish(throwing: error)
                 }
             }
@@ -54,7 +65,9 @@ actor LLMService {
 
     func generate(
         messages: [(role: String, content: String)],
-        videoURLs: [URL] = []
+        videoURLs: [URL] = [],
+        systemPrompt: String? = nil,
+        temperature: Double? = nil
     ) throws -> AsyncStream<String> {
         guard let container = modelContainer else {
             throw LLMError.modelNotLoaded
@@ -93,6 +106,7 @@ actor LLMService {
             throw LLMError.modelNotLoaded
         }
 
+        // Use a temporary session so we do not pollute the main chat history
         let session = ChatSession(container)
         var result = ""
         let stream = session.streamResponse(to: prompt, images: [], videos: [])
@@ -110,6 +124,7 @@ actor LLMService {
         modelContainer = nil
         chatSession = nil
         isVLM = false
+        isLoading = false
     }
 }
 
@@ -121,53 +136,26 @@ actor LLMService {
     private var isCancelled = false
 
     func loadModelByID(_ id: String, isVideoModel: Bool = false) throws -> AsyncThrowingStream<Double, Error> {
-        return AsyncThrowingStream { continuation in
-            Task {
-                for i in 1...10 {
-                    try? await Task.sleep(for: .milliseconds(200))
-                    continuation.yield(Double(i) / 10.0)
-                }
-                continuation.finish()
-            }
-        }
+        AsyncThrowingStream { $0.finish(throwing: LLMError.modelNotLoaded) }
     }
 
-    func finishLoading() async throws {
-        try? await Task.sleep(for: .milliseconds(500))
-    }
+    func finishLoading() async throws {}
 
     func generate(
         messages: [(role: String, content: String)],
-        videoURLs: [URL] = []
+        videoURLs: [URL] = [],
+        systemPrompt: String? = nil,
+        temperature: Double? = nil
     ) throws -> AsyncStream<String> {
-        isCancelled = false
-
-        return AsyncStream { continuation in
-            Task {
-                let response = "This is a simulated response from a mock language model. In a real build with MLX linked, you would see actual model output here. The model would process your message and generate a thoughtful response based on its training."
-                let words = response.split(separator: " ")
-
-                for word in words {
-                    if self.isCancelled { break }
-                    try? await Task.sleep(for: .milliseconds(50))
-                    continuation.yield(String(word) + " ")
-                }
-                continuation.finish()
-            }
-        }
+        throw LLMError.modelNotLoaded
     }
 
     func summarize(prompt: String) async throws -> String {
-        try? await Task.sleep(for: .milliseconds(300))
-        return "• User discussed testing the app\n• Key topic: auto-summarization of long conversations"
+        throw LLMError.modelNotLoaded
     }
 
-    func cancel() {
-        isCancelled = true
-    }
-
+    func cancel() { isCancelled = true }
     func resetSession() {}
-
     func unloadModel() {}
 }
 

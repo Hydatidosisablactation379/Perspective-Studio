@@ -1,7 +1,7 @@
 import Foundation
 import AVFoundation
 
-@Observable
+@Observable @MainActor
 final class TTSService: NSObject, AVSpeechSynthesizerDelegate {
     static let shared = TTSService()
 
@@ -77,34 +77,34 @@ final class TTSService: NSObject, AVSpeechSynthesizerDelegate {
         result = result.replacingOccurrences(of: "\\[([^\\]]+)]\\([^)]*\\)", with: "$1", options: .regularExpression)
 
         // Headings (# at start of line)
-        result = result.replacingOccurrences(of: "^#{1,6}\\s+", with: "", options: [.regularExpression, .anchorsMatchLines])
+        result = result.replacingOccurrences(of: "(?m)^#{1,6}\\s+", with: "", options: .regularExpression)
 
         // Blockquotes
-        result = result.replacingOccurrences(of: "^>\\s*", with: "", options: [.regularExpression, .anchorsMatchLines])
+        result = result.replacingOccurrences(of: "(?m)^>\\s*", with: "", options: .regularExpression)
 
         // Horizontal rules
-        result = result.replacingOccurrences(of: "^[-*_]{3,}$", with: "", options: [.regularExpression, .anchorsMatchLines])
+        result = result.replacingOccurrences(of: "(?m)^[-*_]{3,}$", with: "", options: .regularExpression)
 
         // List items: leading - or * or +
-        result = result.replacingOccurrences(of: "^[\\-\\*\\+]\\s+", with: "", options: [.regularExpression, .anchorsMatchLines])
+        result = result.replacingOccurrences(of: "(?m)^[\\-\\*\\+]\\s+", with: "", options: .regularExpression)
 
         // Numbered list items: "1. "
-        result = result.replacingOccurrences(of: "^\\d+\\.\\s+", with: "", options: [.regularExpression, .anchorsMatchLines])
+        result = result.replacingOccurrences(of: "(?m)^\\d+\\.\\s+", with: "", options: .regularExpression)
 
         return result.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     // MARK: - AVSpeechSynthesizerDelegate
 
-    func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didFinish utterance: AVSpeechUtterance) {
-        DispatchQueue.main.async {
+    nonisolated func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didFinish utterance: AVSpeechUtterance) {
+        Task { @MainActor in
             self.isSpeaking = false
             self.speakingMessageID = nil
         }
     }
 
-    func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didCancel utterance: AVSpeechUtterance) {
-        DispatchQueue.main.async {
+    nonisolated func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didCancel utterance: AVSpeechUtterance) {
+        Task { @MainActor in
             self.isSpeaking = false
             self.speakingMessageID = nil
         }

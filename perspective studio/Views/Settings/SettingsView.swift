@@ -1,3 +1,4 @@
+import AVFAudio
 import SwiftUI
 
 struct SettingsView: View {
@@ -6,14 +7,14 @@ struct SettingsView: View {
     @AppStorage("defaultContextLength") private var defaultContextLength: Int = 4096
     @AppStorage("autoReadAloud") private var autoReadAloud: Bool = false
     @AppStorage("ttsVoiceIdentifier") private var ttsVoiceIdentifier: String = ""
+    @State private var availableVoices: [AVSpeechSynthesisVoice] = []
 
     private var selectedLevel: ExperienceLevel {
         ExperienceLevel(rawValue: experienceLevel) ?? .beginner
     }
 
     var body: some View {
-        NavigationStack {
-            Form {
+        Form {
                 Section {
                     Picker("Experience", selection: $experienceLevel) {
                         ForEach(ExperienceLevel.allCases) { level in
@@ -53,7 +54,7 @@ struct SettingsView: View {
                         Text(RAMService.ramDescription)
                     }
                     LabeledContent("Available for Models") {
-                        Text(String(format: "%.1f GB", RAMService.availableRAMForModels))
+                        Text("\(RAMService.availableRAMForModels.formatted(.number.precision(.fractionLength(1)))) GB")
                     }
                 } header: {
                     Text("Device")
@@ -65,7 +66,7 @@ struct SettingsView: View {
 
                     Picker("Voice", selection: $ttsVoiceIdentifier) {
                         Text("Default").tag("")
-                        ForEach(TTSService.shared.availableVoices(), id: \.identifier) { voice in
+                        ForEach(availableVoices, id: \.identifier) { voice in
                             Text("\(voice.name) (\(voice.language))")
                                 .tag(voice.identifier)
                         }
@@ -96,10 +97,13 @@ struct SettingsView: View {
                         hasCompletedOnboarding = false
                     }
                     .foregroundStyle(.red)
+                    .accessibilityHint("Double tap to reset the setup wizard. You will go through onboarding again.")
                 }
             }
-            .formStyle(.grouped)
-            .navigationTitle("Settings")
+        .formStyle(.grouped)
+        .navigationTitle("Settings")
+        .onAppear {
+            availableVoices = TTSService.shared.availableVoices()
         }
     }
 }

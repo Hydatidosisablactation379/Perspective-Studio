@@ -1,6 +1,7 @@
 import Foundation
 import SwiftData
 import SwiftUI
+import AppKit
 import Accessibility
 
 enum ModelLoadingState: Sendable {
@@ -9,10 +10,6 @@ enum ModelLoadingState: Sendable {
     case loading
     case ready(String)
     case error(String)
-
-    var statusText: String {
-        statusText(for: OnboardingViewModel.currentExperienceLevel)
-    }
 
     func statusText(for level: ExperienceLevel) -> String {
         switch self {
@@ -31,7 +28,7 @@ enum ModelLoadingState: Sendable {
     }
 }
 
-@Observable
+@Observable @MainActor
 final class ChatViewModel {
     var selectedConversation: Conversation?
     var messageText: String = ""
@@ -39,7 +36,7 @@ final class ChatViewModel {
     var isSummarizing: Bool = false
     var modelState: ModelLoadingState = .idle
     var selectedModelID: String?
-    var selectedModelIsVideo: Bool = false
+    var selectedModelIsVisual: Bool = false
     var availableModels: [HFModel] = []
     var newModels: [HFModel] = []
     var isLoadingModels: Bool = false
@@ -48,6 +45,7 @@ final class ChatViewModel {
     var installedModels: [InstalledModel] = []
 
     private var generationTask: Task<Void, Never>?
+    private var loadTask: Task<Void, Never>?
     private var lastAnnouncedMilestone: Int = 0
 
     func fetchModels() async {
@@ -81,49 +79,54 @@ final class ChatViewModel {
         attachedVideoURL = nil
         attachedFileURLs = []
 
-        // Build display content with file contents
-        var parts: [String] = []
+        Task {
+            // Read file contents off the main thread
+            var parts: [String] = []
 
-        if let url = videoURL {
-            parts.append("📹 \(url.lastPathComponent)")
-        }
-
-        for fileURL in fileURLs {
-            let name = fileURL.lastPathComponent
-            if let content = try? String(contentsOf: fileURL, encoding: .utf8) {
-                let trimmed = content.count > 10_000 ? String(content.prefix(10_000)) + "\n…(truncated)" : content
-                parts.append("📎 \(name)\n```\n\(trimmed)\n```")
-            } else {
-                parts.append("📎 \(name) (could not read file)")
+            if let url = videoURL {
+                parts.append("📹 \(url.lastPathComponent)")
             }
-        }
 
-        parts.append(text)
-
-        let displayContent = parts.joined(separator: "\n\n")
-
-        let userMessage = Message(role: .user, content: displayContent)
-        userMessage.conversation = conversation
-        conversation.messages.append(userMessage)
-        conversation.updatedAt = .now
-
-        if conversation.title == "New Conversation" {
-            let maxLen = 40
-            if text.count <= maxLen {
-                conversation.title = text
-            } else {
-                let truncated = String(text.prefix(maxLen))
-                if let lastSpace = truncated.lastIndex(of: " ") {
-                    conversation.title = String(truncated[..<lastSpace]) + "…"
+            for fileURL in fileURLs {
+                let name = fileURL.lastPathComponent
+                let content = await Task.detached(priority: .userInitiated) {
+                    try? String(contentsOf: fileURL, encoding: .utf8)
+                }.value
+                if let content {
+                    let trimmed = content.count > 10_000 ? String(content.prefix(10_000)) + "\n…(truncated)" : content
+                    parts.append("📎 \(name)\n```\n\(trimmed)\n```")
                 } else {
-                    conversation.title = truncated + "…"
+                    parts.append("📎 \(name) (could not read file)")
                 }
             }
+
+            parts.append(text)
+
+            let displayContent = parts.joined(separator: "\n\n")
+
+            let userMessage = Message(role: .user, content: displayContent)
+            userMessage.conversation = conversation
+            conversation.messages.append(userMessage)
+            conversation.updatedAt = .now
+
+            if conversation.title == "New Conversation" {
+                let maxLen = 40
+                if text.count <= maxLen {
+                    conversation.title = text
+                } else {
+                    let truncated = String(text.prefix(maxLen))
+                    if let lastSpace = truncated.lastIndex(of: " ") {
+                        conversation.title = String(truncated[..<lastSpace]) + "…"
+                    } else {
+                        conversation.title = truncated + "…"
+                    }
+                }
+            }
+
+            try? context.save()
+
+            generateResponse(for: conversation, in: context, videoURLs: videoURL.map { [$0] } ?? [])
         }
-
-        try? context.save()
-
-        generateResponse(for: conversation, in: context, videoURLs: videoURL.map { [$0] } ?? [])
     }
 
     private func generateResponse(for conversation: Conversation, in context: ModelContext, videoURLs: [URL] = []) {
@@ -147,7 +150,7 @@ final class ChatViewModel {
                     contextLength: effectiveContextLength
                 ) {
                     if let summaryPrompt = ContextSummarizationService.buildSummarizationPrompt(for: conversation) {
-                        await MainActor.run { self.isSummarizing = true }
+                        isSummarizing = true
                         let rawSummary = try await LLMService.shared.summarize(prompt: summaryPrompt)
                         let summary = ContextSummarizationService.cleanSummary(rawSummary)
                         conversation.runningSummary = summary
@@ -159,7 +162,7 @@ final class ChatViewModel {
                         conversation.messages.append(note)
 
                         try? context.save()
-                        await MainActor.run { self.isSummarizing = false }
+                        isSummarizing = false
                     }
                 }
 
@@ -170,13 +173,15 @@ final class ChatViewModel {
 
                 let stream = try await LLMService.shared.generate(
                     messages: messages,
-                    videoURLs: videoURLs
+                    videoURLs: videoURLs,
+                    systemPrompt: conversation.systemPrompt,
+                    temperature: conversation.temperature
                 )
                 var buffer = ""
-                var lastFlush = Date()
+                var lastFlush = Date.now
                 for await token in stream {
                     buffer += token
-                    let now = Date()
+                    let now = Date.now
                     if now.timeIntervalSince(lastFlush) >= 0.08 {
                         assistantMessage.content += buffer
                         buffer = ""
@@ -187,11 +192,9 @@ final class ChatViewModel {
                     assistantMessage.content += buffer
                 }
 
-                // Auto-read if setting enabled
+                // Auto-read only if the setting is enabled
                 if UserDefaults.standard.bool(forKey: "autoReadAloud") {
-                    await MainActor.run {
-                        TTSService.shared.speak(text: assistantMessage.content, messageID: assistantMessage.id)
-                    }
+                    TTSService.shared.speak(text: assistantMessage.content, messageID: assistantMessage.id)
                 }
 
                 conversation.updatedAt = .now
@@ -232,35 +235,29 @@ final class ChatViewModel {
     }
 
     func loadHFModel(_ model: HFModel) {
+        loadTask?.cancel()
         selectedModelID = model.id
-        selectedModelIsVideo = model.category == .video
+        selectedModelIsVisual = model.category == .video || model.category == .vision
         modelState = .downloading(0)
         lastAnnouncedMilestone = 0
 
-        Task {
+        loadTask = Task {
             do {
+                let isVisual = model.category == .video || model.category == .vision
                 let stream = try await LLMService.shared.loadModelByID(
                     model.id,
-                    isVideoModel: model.category == .video
+                    isVideoModel: isVisual
                 )
                 for try await progress in stream {
-                    await MainActor.run {
-                        self.modelState = .downloading(progress)
-                        self.announceProgressMilestone(progress)
-                    }
+                    modelState = .downloading(progress)
+                    announceProgressMilestone(progress)
                 }
-                await MainActor.run {
-                    self.modelState = .loading
-                }
+                modelState = .loading
                 try await LLMService.shared.finishLoading()
-                await MainActor.run {
-                    self.modelState = .ready(model.displayName)
-                    AccessibilityNotification.Announcement("Model ready to use").post()
-                }
+                modelState = .ready(model.displayName)
+                AccessibilityNotification.Announcement("Model ready to use").post()
             } catch {
-                await MainActor.run {
-                    self.modelState = .error(friendlyErrorMessage(for: error, model: model))
-                }
+                modelState = .error(friendlyErrorMessage(for: error, model: model))
             }
         }
     }
@@ -316,7 +313,10 @@ final class ChatViewModel {
                 || fm.fileExists(atPath: modelDir.appendingPathComponent("snapshots").path)
             guard hasBlobsOrSnapshots else { continue }
 
-            found.append(InstalledModel(id: modelId, displayName: modelName, author: author))
+            // Skip models that cannot be used for chat (TTS, transcription, embedding, etc.)
+            guard !Self.looksLikeNonChatModel(modelName) else { continue }
+
+            found.append(InstalledModel(id: modelId, displayName: modelName, author: author, isVisual: Self.looksLikeVisualModel(modelName)))
         }
 
         installedModels = found.sorted {
@@ -325,16 +325,123 @@ final class ChatViewModel {
     }
 
     func loadInstalledModel(_ model: InstalledModel) {
+        let pipeline: String? = model.isVisual ? "image-text-to-text" : nil
+        let tags: [String] = model.isVisual ? ["image-text-to-text"] : []
         let hfModel = HFModel(
             id: model.id,
             name: model.id,
             downloads: 0,
             likes: 0,
-            tags: [],
-            pipelineTag: nil,
+            tags: tags,
+            pipelineTag: pipeline,
             createdAt: nil
         )
         loadHFModel(hfModel)
+    }
+
+    /// Downloads a model without attempting to load it into memory.
+    /// Used for model types that can't be run yet (e.g. TTS).
+    func downloadHFModel(_ model: HFModel) {
+        loadTask?.cancel()
+        selectedModelID = model.id
+        selectedModelIsVisual = false
+        modelState = .downloading(0)
+        lastAnnouncedMilestone = 0
+
+        loadTask = Task {
+            do {
+                let stream = try await LLMService.shared.loadModelByID(model.id)
+                for try await progress in stream {
+                    modelState = .downloading(progress)
+                    announceProgressMilestone(progress)
+                }
+                // Loading succeeded (unexpected for TTS, but fine)
+                try await LLMService.shared.finishLoading()
+                await LLMService.shared.unloadModel()
+                modelState = .idle
+                AccessibilityNotification.Announcement("Model downloaded successfully").post()
+            } catch {
+                // Expected for non-loadable models — check if files ended up in cache
+                let isNowDownloaded = model.isDownloaded
+                if isNowDownloaded {
+                    modelState = .idle
+                    AccessibilityNotification.Announcement("Model downloaded successfully").post()
+                } else {
+                    modelState = .error(friendlyErrorMessage(for: error, model: model))
+                }
+            }
+        }
+    }
+
+    /// Heuristic to detect models that cannot be used for chat (TTS, transcription, embedding, audio, translation).
+    static func looksLikeNonChatModel(_ name: String) -> Bool {
+        let lower = name.lowercased()
+
+        // TTS
+        if lower.contains("tts") || lower.contains("kokoro") || lower.contains("orpheus")
+            || lower.contains("parler") || lower.contains("bark") || lower.contains("outetts")
+            || lower.contains("mars5") || lower.contains("styletts") || lower.contains("f5-tts")
+            || lower.contains("cosyvoice") || lower.contains("chattts") || lower.contains("soprano")
+            || lower.contains("vibevoice") || lower.contains("pocket-tts") || lower.contains("vyvo")
+            || lower.contains("marvis") {
+            return true
+        }
+
+        // Transcription / ASR
+        if lower.contains("whisper") || lower.contains("wav2vec") || lower.contains("hubert")
+            || lower.contains("conformer") || lower.contains("mms-") || lower.contains("parakeet") {
+            return true
+        }
+
+        // Embedding
+        if lower.contains("embedding") || lower.contains("gte-") || lower.contains("bge-")
+            || lower.contains("nomic-embed") || lower.contains("e5-") || lower.contains("jina-embed") {
+            return true
+        }
+
+        // Translation
+        if lower.contains("nllb") || lower.contains("opus-mt") || lower.contains("marian")
+            || lower.contains("madlad") {
+            return true
+        }
+
+        // Audio processing
+        if lower.contains("encodec") || lower.contains("musicgen") || lower.contains("audiogen")
+            || lower.contains("audiocraft") || lower.contains("dac-") {
+            return true
+        }
+
+        // Image generation (diffusion models)
+        if lower.contains("stable-diffusion") || lower.contains("flux") || lower.contains("diffusion") {
+            return true
+        }
+
+        return false
+    }
+
+    /// Heuristic to detect video or vision models from their name in the HF cache.
+    /// Both video and vision models use the VLM pipeline.
+    static func looksLikeVisualModel(_ name: String) -> Bool {
+        let lower = name.lowercased()
+        // Video patterns
+        if lower.contains("video") || lower.contains("videollama") || lower.contains("videochat") {
+            return true
+        }
+        // Vision patterns — mirrors HFModel.category detection
+        if lower.contains("vision") || lower.contains("llava") || lower.contains("pixtral")
+            || lower.contains("idefics") || lower.contains("minicpm-o")
+            || lower.contains("paligemma") || lower.contains("florence")
+            || lower.contains("molmo") || lower.contains("got-ocr")
+            || lower.contains("moondream") || lower.contains("bunny")
+            || lower.contains("internvl") || lower.contains("smolvlm")
+            || lower.contains("fastvlm") {
+            return true
+        }
+        // "VL" suffix/segment (e.g. Qwen2.5-VL, Phi-3.5-VL)
+        if lower.hasSuffix("-vl") || lower.contains("-vl-") {
+            return true
+        }
+        return false
     }
 }
 
@@ -342,4 +449,6 @@ struct InstalledModel: Identifiable, Hashable {
     let id: String
     let displayName: String
     let author: String
+    let isVisual: Bool
+    var isLoadable: Bool = true
 }

@@ -4,8 +4,9 @@ struct ModelCardView: View {
     let model: HFModel
     var isLoaded: Bool = false
 
+    @AppStorage("experienceLevel") private var experienceLevelRaw: String = ExperienceLevel.beginner.rawValue
     private var experienceLevel: ExperienceLevel {
-        OnboardingViewModel.currentExperienceLevel
+        ExperienceLevel(rawValue: experienceLevelRaw) ?? .beginner
     }
 
     private var compatibility: RAMService.ModelCompatibility? {
@@ -99,6 +100,7 @@ struct ModelCardView: View {
         .shadow(color: .black.opacity(0.05), radius: 2, x: 0, y: 1)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(accessibilityDescription)
+        .accessibilityHint("Double tap to view model details")
     }
 
     private func tagPill(_ text: String, color: Color) -> some View {
@@ -112,9 +114,9 @@ struct ModelCardView: View {
 
     private var formattedDownloads: String {
         if model.downloads >= 1_000_000 {
-            return String(format: "%.1fM", Double(model.downloads) / 1_000_000)
+            return "\((Double(model.downloads) / 1_000_000).formatted(.number.precision(.fractionLength(1))))M"
         } else if model.downloads >= 1_000 {
-            return String(format: "%.1fK", Double(model.downloads) / 1_000)
+            return "\((Double(model.downloads) / 1_000).formatted(.number.precision(.fractionLength(1))))K"
         }
         return "\(model.downloads)"
     }

@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct DownloadsView: View {
-    @Bindable var chatViewModel: ChatViewModel
+    let chatViewModel: ChatViewModel
     @State private var downloadedModels: [DownloadedModel] = []
     @State private var isLoading = true
     @State private var showDeleteConfirmation = false
@@ -20,119 +20,110 @@ struct DownloadsView: View {
     }
 
     var body: some View {
-        NavigationStack {
-            Group {
-                if isLoading {
-                    ProgressView("Scanning downloads...")
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                } else if downloadedModels.isEmpty {
-                    ContentUnavailableView {
-                        Label("No Downloads", systemImage: "arrow.down.circle")
-                    } description: {
-                        Text("Models you download will appear here.")
-                    }
-                } else {
-                    List {
-                        ForEach(downloadedModels) { model in
-                            DownloadedModelRow(
-                                model: model,
-                                isLoaded: isModelLoaded(model),
-                                onLoad: { loadModel(model) },
-                                onDelete: {
-                                    modelToDelete = model
-                                    showDeleteConfirmation = true
-                                }
-                            )
-                        }
+        Group {
+            if isLoading {
+                ProgressView("Scanning downloads...")
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else if downloadedModels.isEmpty {
+                ContentUnavailableView {
+                    Label("No Downloads", systemImage: "arrow.down.circle")
+                } description: {
+                    Text("Models you download will appear here.")
+                }
+            } else {
+                List {
+                    ForEach(downloadedModels) { model in
+                        DownloadedModelRow(
+                            model: model,
+                            isLoaded: isModelLoaded(model),
+                            onLoad: { loadModel(model) },
+                            onDelete: {
+                                modelToDelete = model
+                                showDeleteConfirmation = true
+                            }
+                        )
                     }
                 }
             }
-            .navigationTitle("Downloads")
-            .toolbar {
-                ToolbarItem(placement: .automatic) {
-                    HStack(spacing: 12) {
-                        if !downloadedModels.isEmpty {
-                            Text(totalSizeFormatted)
-                                .font(.subheadline)
-                                .foregroundStyle(.secondary)
-                        }
-                        Text("\(downloadedModels.count) models")
+        }
+        .navigationTitle("Downloads")
+        .toolbar {
+            ToolbarItem(placement: .automatic) {
+                HStack(spacing: 12) {
+                    if !downloadedModels.isEmpty {
+                        Text(totalSizeFormatted)
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
-                        Button("Refresh", systemImage: "arrow.clockwise") {
-                            Task { await scanDownloads() }
-                        }
-                        .labelStyle(.iconOnly)
+                    }
+                    Text("\(downloadedModels.count) models")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                    Button("Refresh", systemImage: "arrow.clockwise") {
+                        Task { await scanDownloads() }
+                    }
+                    .labelStyle(.iconOnly)
 
-                        if downloadedModels.count > 1 {
-                            Button("Remove All", systemImage: "trash", role: .destructive) {
-                                showDeleteAllConfirmation = true
-                            }
-                            .labelStyle(.titleAndIcon)
-                            .foregroundStyle(.red)
+                    if downloadedModels.count > 1 {
+                        Button("Remove All", systemImage: "trash", role: .destructive) {
+                            showDeleteAllConfirmation = true
                         }
+                        .labelStyle(.titleAndIcon)
+                        .foregroundStyle(.red)
+                        .accessibilityHint("Removes all downloaded models from your Mac")
                     }
                 }
             }
-            .task { await scanDownloads() }
-            .alert("Delete Model?", isPresented: $showDeleteConfirmation, presenting: modelToDelete) { model in
-                Button("Delete", role: .destructive) { deleteModel(model) }
-                Button("Cancel", role: .cancel) { }
-            } message: { model in
-                Text("This will remove \(model.displayName) (\(model.sizeFormatted)) from your Mac. You can re-download it later.")
-            }
-            .alert("Remove All Models?", isPresented: $showDeleteAllConfirmation) {
-                Button("Remove All", role: .destructive) { deleteAllModels() }
-                Button("Cancel", role: .cancel) { }
-            } message: {
-                Text("This will remove all \(downloadedModels.count) downloaded models (\(totalSizeFormatted)) from your Mac. You can re-download them later.")
-            }
+        }
+        .task { await scanDownloads() }
+        .alert("Delete Model?", isPresented: $showDeleteConfirmation, presenting: modelToDelete) { model in
+            Button("Delete", role: .destructive) { deleteModel(model) }
+            Button("Cancel", role: .cancel) { }
+        } message: { model in
+            Text("This will remove \(model.displayName) (\(model.sizeFormatted)) from your Mac. You can re-download it later.")
+        }
+        .alert("Remove All Models?", isPresented: $showDeleteAllConfirmation) {
+            Button("Remove All", role: .destructive) { deleteAllModels() }
+            Button("Cancel", role: .cancel) { }
+        } message: {
+            Text("This will remove all \(downloadedModels.count) downloaded models (\(totalSizeFormatted)) from your Mac. You can re-download them later.")
         }
     }
 
     private func scanDownloads() async {
         isLoading = true
-        let fm = FileManager.default
         let hubDir = hubCacheDirectory
-
-        guard let entries = try? fm.contentsOfDirectory(atPath: hubDir.path()) else {
-            downloadedModels = []
-            isLoading = false
-            return
-        }
-
-        var found: [DownloadedModel] = []
-
-        for entry in entries {
-            // HF Hub cache format: models--{author}--{modelName}
-            guard entry.hasPrefix("models--") else { continue }
-
-            let parts = entry.dropFirst("models--".count).split(separator: "--", maxSplits: 1)
-            guard parts.count == 2 else { continue }
-            let author = String(parts[0])
-            let modelName = String(parts[1])
-            let modelId = "\(author)/\(modelName)"
-
-            let modelDir = hubDir.appendingPathComponent(entry)
-
-            // Size is stored in blobs/
-            let blobsDir = modelDir.appendingPathComponent("blobs")
-            let totalSize = directorySize(at: blobsDir, fileManager: fm)
-
-            found.append(DownloadedModel(
-                id: modelId,
-                displayName: modelName,
-                author: author,
-                sizeBytes: totalSize,
-                path: modelDir
-            ))
-        }
-
-        downloadedModels = found.sorted { $0.displayName.localizedCaseInsensitiveCompare($1.displayName) == .orderedAscending }
+        let found = await Task.detached(priority: .userInitiated) {
+            let fm = FileManager.default
+            guard let entries = try? fm.contentsOfDirectory(atPath: hubDir.path()) else {
+                return [DownloadedModel]()
+            }
+            var result: [DownloadedModel] = []
+            for entry in entries {
+                // HF Hub cache format: models--{author}--{modelName}
+                guard entry.hasPrefix("models--") else { continue }
+                let parts = entry.dropFirst("models--".count).split(separator: "--", maxSplits: 1)
+                guard parts.count == 2 else { continue }
+                let author = String(parts[0])
+                let modelName = String(parts[1])
+                let modelId = "\(author)/\(modelName)"
+                let modelDir = hubDir.appendingPathComponent(entry)
+                let blobsDir = modelDir.appendingPathComponent("blobs")
+                let totalSize = Self.directorySize(at: blobsDir, fileManager: fm)
+                result.append(DownloadedModel(
+                    id: modelId,
+                    displayName: modelName,
+                    author: author,
+                    sizeBytes: totalSize,
+                    path: modelDir
+                ))
+            }
+            return result.sorted { $0.displayName.localizedCaseInsensitiveCompare($1.displayName) == .orderedAscending }
+        }.value
+        downloadedModels = found
         isLoading = false
     }
 
-    private func directorySize(at url: URL, fileManager fm: FileManager) -> Int64 {
+    private nonisolated static func directorySize(at url: URL, fileManager fm: FileManager) -> Int64 {
         guard let enumerator = fm.enumerator(at: url, includingPropertiesForKeys: [.fileSizeKey, .isRegularFileKey]) else {
             return 0
         }
@@ -159,13 +150,14 @@ struct DownloadsView: View {
     }
 
     private func loadModel(_ model: DownloadedModel) {
+        let isVisual = ChatViewModel.looksLikeVisualModel(model.displayName)
         let hfModel = HFModel(
             id: model.id,
             name: model.id,
             downloads: 0,
             likes: 0,
-            tags: [],
-            pipelineTag: nil,
+            tags: isVisual ? ["image-text-to-text"] : [],
+            pipelineTag: isVisual ? "image-text-to-text" : nil,
             createdAt: nil
         )
         chatViewModel.loadHFModel(hfModel)
@@ -239,6 +231,7 @@ private struct DownloadedModelRow: View {
             .accessibilityLabel("Delete \(model.displayName)")
         }
         .padding(.vertical, 4)
-        .accessibilityElement(children: .combine)
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("\(model.displayName), \(model.author), \(model.sizeFormatted)\(isLoaded ? ", Active" : "")")
     }
 }

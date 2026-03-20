@@ -19,15 +19,6 @@ final class OnboardingViewModel {
     var selectedExperienceLevel: ExperienceLevel? = nil
     var selectedInterests: Set<AIInterest> = []
 
-    static var currentExperienceLevel: ExperienceLevel {
-        let defaults = UserDefaults.standard
-        if let raw = defaults.string(forKey: "experienceLevel"),
-           let level = ExperienceLevel(rawValue: raw) {
-            return level
-        }
-        return .beginner
-    }
-
     func advance() {
         guard let next = OnboardingStep(rawValue: currentStep.rawValue + 1) else { return }
         currentStep = next

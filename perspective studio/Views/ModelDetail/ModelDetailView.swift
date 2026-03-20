@@ -9,8 +9,9 @@ struct ModelDetailView: View {
     @State private var showRemoveConfirmation = false
     @State private var downloadCheckID = UUID()
 
+    @AppStorage("experienceLevel") private var experienceLevelRaw: String = ExperienceLevel.beginner.rawValue
     private var experienceLevel: ExperienceLevel {
-        OnboardingViewModel.currentExperienceLevel
+        ExperienceLevel(rawValue: experienceLevelRaw) ?? .beginner
     }
 
     private var compatibility: RAMService.ModelCompatibility? {
@@ -72,7 +73,7 @@ struct ModelDetailView: View {
         } message: {
             Text("This will delete \(model.displayName) from your Mac. You can re-download it later.")
         }
-        .onChange(of: chatViewModel.modelState.statusText) {
+        .onChange(of: chatViewModel.modelState.statusText(for: experienceLevel)) {
             downloadCheckID = UUID()
         }
     }
@@ -181,6 +182,9 @@ struct ModelDetailView: View {
                 } else {
                     downloadOrLoadButton
                 }
+            } else {
+                // Non-loadable models (TTS, etc.) — download only
+                downloadOnlyButton
             }
         }
     }
@@ -199,6 +203,7 @@ struct ModelDetailView: View {
             .buttonStyle(.borderedProminent)
             .tint(.green)
             .controlSize(.large)
+            .accessibilityHint("Double tap to load this model and begin a conversation")
 
             HStack(spacing: 16) {
                 Text("Already downloaded on your Mac")
@@ -212,6 +217,7 @@ struct ModelDetailView: View {
                         .font(.caption)
                 }
                 .buttonStyle(.borderless)
+                .accessibilityHint("Double tap to remove this model from your Mac")
             }
         } else {
             Button {
@@ -229,6 +235,7 @@ struct ModelDetailView: View {
             .buttonStyle(.borderedProminent)
             .controlSize(.large)
             .disabled(compatibility == .incompatible)
+            .accessibilityHint("Double tap to download and load this model")
         }
     }
 
@@ -245,6 +252,89 @@ struct ModelDetailView: View {
             .padding()
             .background(.orange.opacity(0.1))
             .clipShape(.rect(cornerRadius: 8))
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel("Warning: \(reason)")
+        }
+    }
+
+    @ViewBuilder
+    private var downloadOnlyButton: some View {
+        if isThisModelActive {
+            switch chatViewModel.modelState {
+            case .downloading(let progress):
+                VStack(spacing: 8) {
+                    ProgressView(value: progress) {
+                        Text("Downloading…")
+                            .font(.subheadline)
+                    } currentValueLabel: {
+                        Text("\(Int(progress * 100))%")
+                            .font(.caption)
+                            .monospacedDigit()
+                    }
+                    .tint(.blue)
+                }
+                .padding()
+                .background(.regularMaterial)
+                .clipShape(.rect(cornerRadius: 12))
+
+            case .error(let message):
+                VStack(spacing: 6) {
+                    Label("Download Failed", systemImage: "xmark.circle.fill")
+                        .foregroundStyle(.red)
+                        .font(.subheadline)
+                    Text(message)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+
+                    Button {
+                        chatViewModel.downloadHFModel(model)
+                    } label: {
+                        Label("Try Again", systemImage: "arrow.clockwise")
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.small)
+                }
+
+            default:
+                downloadOnlyIdleState
+            }
+        } else {
+            downloadOnlyIdleState
+        }
+    }
+
+    @ViewBuilder
+    private var downloadOnlyIdleState: some View {
+        if isModelDownloaded {
+            Label(
+                "Downloaded",
+                systemImage: "checkmark.circle.fill"
+            )
+            .font(.subheadline)
+            .foregroundStyle(.green)
+
+            HStack(spacing: 16) {
+                Text("Saved on your Mac for future use")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+
+                Button(role: .destructive) {
+                    showRemoveConfirmation = true
+                } label: {
+                    Label("Remove", systemImage: "trash")
+                        .font(.caption)
+                }
+                .buttonStyle(.borderless)
+            }
+        } else {
+            Button {
+                chatViewModel.downloadHFModel(model)
+            } label: {
+                Label("Download", systemImage: "arrow.down.circle")
+            }
+            .buttonStyle(.borderedProminent)
+            .controlSize(.large)
         }
     }
 
@@ -301,7 +391,7 @@ struct ModelDetailView: View {
                         Text("Estimated RAM needed")
                             .foregroundStyle(.secondary)
                         Spacer()
-                        Text(String(format: "%.1f GB", ram))
+                        Text("\(ram.formatted(.number.precision(.fractionLength(1)))) GB")
                     }
                     .font(.subheadline)
 
@@ -309,7 +399,7 @@ struct ModelDetailView: View {
                         Text("Available for models")
                             .foregroundStyle(.secondary)
                         Spacer()
-                        Text(String(format: "%.1f GB", RAMService.availableRAMForModels))
+                        Text("\(RAMService.availableRAMForModels.formatted(.number.precision(.fractionLength(1)))) GB")
                     }
                     .font(.subheadline)
                 }
@@ -363,45 +453,3 @@ struct ModelDetailView: View {
     }
 }
 
-struct FlowLayout: Layout {
-    var spacing: CGFloat = 8
-
-    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
-        let result = arrange(proposal: proposal, subviews: subviews)
-        return result.size
-    }
-
-    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
-        let result = arrange(proposal: proposal, subviews: subviews)
-        for (index, position) in result.positions.enumerated() {
-            subviews[index].place(
-                at: CGPoint(x: bounds.minX + position.x, y: bounds.minY + position.y),
-                proposal: .unspecified
-            )
-        }
-    }
-
-    private func arrange(proposal: ProposedViewSize, subviews: Subviews) -> (size: CGSize, positions: [CGPoint]) {
-        let maxWidth = proposal.width ?? .infinity
-        var positions: [CGPoint] = []
-        var currentX: CGFloat = 0
-        var currentY: CGFloat = 0
-        var lineHeight: CGFloat = 0
-        var maxX: CGFloat = 0
-
-        for subview in subviews {
-            let size = subview.sizeThatFits(.unspecified)
-            if currentX + size.width > maxWidth, currentX > 0 {
-                currentX = 0
-                currentY += lineHeight + spacing
-                lineHeight = 0
-            }
-            positions.append(CGPoint(x: currentX, y: currentY))
-            lineHeight = max(lineHeight, size.height)
-            currentX += size.width + spacing
-            maxX = max(maxX, currentX)
-        }
-
-        return (CGSize(width: maxX, height: currentY + lineHeight), positions)
-    }
-}

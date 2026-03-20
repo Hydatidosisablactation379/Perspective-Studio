@@ -21,6 +21,9 @@ actor HuggingFaceService {
 
         while let url = nextPageURL {
             let (data, response) = try await URLSession.shared.data(from: url)
+            if let http = response as? HTTPURLResponse, !(200..<300).contains(http.statusCode) {
+                throw HFError.httpError(http.statusCode)
+            }
             let responses = try JSONDecoder().decode([HFModelResponse].self, from: data)
 
             let models = responses.map { r in
@@ -54,7 +57,10 @@ actor HuggingFaceService {
         }
 
         guard let url = buildNewModelsURL() else { throw HFError.invalidURL }
-        let (data, _) = try await URLSession.shared.data(from: url)
+        let (data, response) = try await URLSession.shared.data(from: url)
+        if let http = response as? HTTPURLResponse, !(200..<300).contains(http.statusCode) {
+            throw HFError.httpError(http.statusCode)
+        }
         let responses = try JSONDecoder().decode([HFModelResponse].self, from: data)
 
         let sevenDaysAgo = Calendar.current.date(byAdding: .day, value: -7, to: .now) ?? .now
@@ -87,7 +93,10 @@ actor HuggingFaceService {
             throw HFError.invalidURL
         }
 
-        let (data, _) = try await URLSession.shared.data(from: url)
+        let (data, cardResponse) = try await URLSession.shared.data(from: url)
+        if let http = cardResponse as? HTTPURLResponse, !(200..<300).contains(http.statusCode) {
+            throw HFError.httpError(http.statusCode)
+        }
         guard var content = String(data: data, encoding: .utf8) else {
             throw HFError.invalidResponse
         }
@@ -174,11 +183,13 @@ actor HuggingFaceService {
 enum HFError: LocalizedError {
     case invalidURL
     case invalidResponse
+    case httpError(Int)
 
     var errorDescription: String? {
         switch self {
         case .invalidURL: "Invalid Hugging Face URL"
         case .invalidResponse: "Could not read model information"
+        case .httpError(let code): "Server returned HTTP \(code)"
         }
     }
 }

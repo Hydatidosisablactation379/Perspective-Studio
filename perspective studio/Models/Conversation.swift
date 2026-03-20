@@ -10,6 +10,8 @@ final class Conversation {
     var modelIdentifier: String?
     var runningSummary: String?
     var lastSummarizedMessageCount: Int = 0
+    var temperature: Double = 0.7
+    var systemPrompt: String?
 
     @Relationship(deleteRule: .cascade, inverse: \Message.conversation)
     var messages: [Message] = []
